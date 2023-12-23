@@ -9,8 +9,10 @@
 package org.dolphinemu.dolphinemu.features
 
 import android.annotation.TargetApi
+import android.content.res.AssetFileDescriptor
 import android.database.Cursor
 import android.database.MatrixCursor
+import android.graphics.Point
 import android.os.Build
 import android.os.CancellationSignal
 import android.os.ParcelFileDescriptor
@@ -107,6 +109,15 @@ class DocumentProvider : DocumentsProvider() {
         return ParcelFileDescriptor.open(file, ParcelFileDescriptor.parseMode(mode))
     }
 
+    override fun openDocumentThumbnail(
+            documentId: String, sizeHint: Point,
+            signal: CancellationSignal
+    ): AssetFileDescriptor {
+        val file = documentIdToPath(documentId)
+        val pfd = ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY)
+        return AssetFileDescriptor(pfd, 0, AssetFileDescriptor.UNKNOWN_LENGTH)
+    }
+
     override fun createDocument(
         parentDocumentId: String,
         mimeType: String,
@@ -160,6 +171,11 @@ class DocumentProvider : DocumentsProvider() {
             context!!.getString(R.string.app_name_suffixed)
         } else {
             file.name
+        }
+        val mimeType = getTypeForFile(file)
+        if (file.exists() && mimeType.startsWith("image/")) {
+            // Allow the image to be represented by a thumbnail rather than an icon
+            flags = flags or DocumentsContract.Document.FLAG_SUPPORTS_THUMBNAIL
         }
         cursor.newRow().apply {
             add(DocumentsContract.Document.COLUMN_DOCUMENT_ID, pathToDocumentId(file))
